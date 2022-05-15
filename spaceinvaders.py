@@ -2,6 +2,7 @@ from pygame import *
 import sys
 from os.path import abspath, dirname
 from random import choice
+import random
 
 BASE_PATH = abspath(dirname(__file__))
 FONT_PATH = BASE_PATH + '/fonts/'
@@ -27,7 +28,7 @@ IMAGES = {name: image.load(IMAGE_PATH + '{}.png'.format(name)).convert_alpha()
           for name in IMG_NAMES}
 
 ENEMY_DEFAULT_POSITION = 50 
-ENEMY_MOVE_DOWN = 40
+ENEMY_MOVE_DOWN = 50
 
 
 class Ship(sprite.Sprite):
@@ -109,7 +110,7 @@ class EnemiesGroup(sprite.Group):
         self.rightAddMove = 0
         self.moveTime = 500
         self.direction = 1
-        self.rightMoves = 30
+        self.rightMoves = 25
         self.leftMoves = 25
         self.moveNumber = 15
         self.timer = time.get_ticks()
@@ -165,10 +166,12 @@ class EnemiesGroup(sprite.Group):
         return next((en for en in col_enemies if en is not None), None)
 
     def update_speed(self):
-        if len(self) == 1:
-            self.moveTime = 200
-        elif len(self) <= 10:
-            self.moveTime = 400
+        if len(self) <= 3:
+            self.moveTime = random.randint(50,150)
+        elif len(self) <= 15:
+            self.moveTime = random.randint(150,300)
+        elif len(self) > 15:
+            self.moveTime = random.randint(300,500)
 
     def kill(self, enemy):
         self.enemies[enemy.row][enemy.column] = None
@@ -196,7 +199,7 @@ class Mystery(sprite.Sprite):
         self.image = transform.scale(self.image, (75, 50))
         self.rect = self.image.get_rect(topleft=(-80, 45))
         self.row = 5
-        self.moveTime = 25000
+        self.moveTime = 20000
         self.direction = 1
         self.timer = time.get_ticks()
         self.mysteryEntered = mixer.Sound(SOUND_PATH + 'mysteryentered.wav')
@@ -234,16 +237,10 @@ class Mystery(sprite.Sprite):
 class MysteryExplosion(sprite.Sprite):
     def __init__(self, mystery, score, *groups):
         super(MysteryExplosion, self).__init__(*groups)
-        self.text = Text(FONT, 20, str(score), WHITE,
-                         mystery.rect.x + 20, mystery.rect.y + 6)
         self.timer = time.get_ticks()
 
-    def update(self, current_time, *args):
-        passed = current_time - self.timer
-        if passed <= 150 or 300 < passed <= 500:
-            self.text.draw(game.screen)
-        elif 500 < passed:
-            self.kill()
+    def update(self, *args):
+        self.kill()
 
 
 class ShipExplosion(sprite.Sprite):
@@ -292,6 +289,7 @@ class SpaceInvaders(object):
         self.startGame = False
         self.mainScreen = True
         self.gameOver = False
+        round = 1
 
         self.enemyPosition = ENEMY_DEFAULT_POSITION
         self.titleText = Text(FONT, 50, 'Space Invaders', BLUE, 164, 155)
@@ -300,7 +298,6 @@ class SpaceInvaders(object):
         self.nextRoundText = Text(FONT, 50, 'Next Round', YELLOW, 240, 270)
         self.scoreText = Text(FONT, 20, 'Score', GREEN, 5, 5)
         self.livesText = Text(FONT, 20, 'Lives ', GREEN, 5, 580)
-        self.highText = Text(FONT, 20, 'HighScore ', GREEN, 580, 5)
 
         self.life1 = Life(94, 580)
         self.life2 = Life(124, 580)
@@ -328,7 +325,7 @@ class SpaceInvaders(object):
         self.create_audio()
         self.makeNewShip = False
         self.shipAlive = True
-
+        
 
     def create_audio(self):
         self.sounds = {}
@@ -393,11 +390,11 @@ class SpaceInvaders(object):
 
     def make_enemies(self):
         enemies = EnemiesGroup(8, 5)
-        for row in range(5):
+        for row in range(4):
             for column in range(8):
                 enemy = Enemy(row, column)
-                enemy.rect.x = 120 + (column * 65)
-                enemy.rect.y = self.enemyPosition + (row * 65)
+                enemy.rect.x = random.randint(80,140) + (column * 60)
+                enemy.rect.y = self.enemyPosition + random.randint(0,50) + (row * 60)
                 enemies.add(enemy)
 
         self.enemies = enemies
@@ -427,12 +424,12 @@ class SpaceInvaders(object):
                 self.timer = time.get_ticks()
 
     def calculate_score(self, row):
-        scores = {0: 30,
-                  1: 20,
-                  2: 20,
+        scores = {0: random.randint(15,25),
+                  1: 15,
+                  2: random.randint(10,15),
                   3: 10,
-                  4: 10,
-                  5: choice([50, 100, 150, 300])
+                  4: random.randint(5,10),
+                  5: random.randint(-250,250)
                   }
 
         score = scores[row]
@@ -513,7 +510,6 @@ class SpaceInvaders(object):
                     if self.should_exit(e):
                         sys.exit()
                     if e.type == KEYUP:
-                        self.livesGroup.add(self.life1, self.life2, self.life3)
                         self.reset(0)
                         self.startGame = True
                         self.mainScreen = False
@@ -532,7 +528,6 @@ class SpaceInvaders(object):
                         self.livesGroup.update()
                         self.check_input()
                     if currentTime - self.gameTimer > 3000:
-                        # Move enemies closer to bottom
                         self.enemyPosition += ENEMY_MOVE_DOWN
                         self.reset(self.score)
                         self.gameTimer += 3000
